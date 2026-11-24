@@ -52,11 +52,12 @@ export function useCloud(enabled: boolean): CloudAccess {
   const refreshSequence = useRef(0);
 
   const load = useCallback(async () => {
-    if (!supabase || !enabled || !userRef.current) return;
+    const client = supabase;
+    if (!client || !enabled || !userRef.current) return;
     const sequence = ++refreshSequence.current;
     setRefreshing(true);
     try {
-      const membership = await supabase.from('workspace_members').select('workspace_id').eq('user_id', userRef.current);
+      const membership = await client.from('workspace_members').select('workspace_id').eq('user_id', userRef.current);
       if (membership.error) throw membership.error;
       const ids = (membership.data || []).map((row) => row.workspace_id as string);
       if (!ids.length) {
@@ -67,22 +68,22 @@ export function useCloud(enabled: boolean): CloudAccess {
       const selectedId = requested && ids.includes(requested) ? requested : ids[0];
       workspaceRef.current = selectedId;
       const [workspaceResult, roomsResult, usersResult] = await Promise.all([
-        supabase.from('workspaces').select('id,name,invite_code,owner_id').eq('id', selectedId).single(),
-        supabase.from('rooms').select('id,workspace_id,name,description,kind,created_at').eq('workspace_id', selectedId).order('created_at', { ascending: true }),
-        supabase.from('workspace_members').select('user_id,role').eq('workspace_id', selectedId)
+        client.from('workspaces').select('id,name,invite_code,owner_id').eq('id', selectedId).single(),
+        client.from('rooms').select('id,workspace_id,name,description,kind,created_at').eq('workspace_id', selectedId).order('created_at', { ascending: true }),
+        client.from('workspace_members').select('user_id,role').eq('workspace_id', selectedId)
       ]);
       if (workspaceResult.error) throw workspaceResult.error;
       if (roomsResult.error) throw roomsResult.error;
       if (usersResult.error) throw usersResult.error;
       const workspaceRow = workspaceResult.data;
       const workspace: Workspace = { id: workspaceRow.id, name: workspaceRow.name, code: workspaceRow.invite_code, ownerId: workspaceRow.owner_id };
-      const membersResult = await supabase.from('profiles').select('id,display_name,avatar_color').in('id', (usersResult.data || []).map((item) => item.user_id));
+      const membersResult = await client.from('profiles').select('id,display_name,avatar_color').in('id', (usersResult.data || []).map((item) => item.user_id));
       if (membersResult.error) throw membersResult.error;
       const memberRows = (membersResult.data || []) as ProfileRow[];
       const members: Member[] = memberRows.map((row) => ({ id: row.id, name: row.display_name, color: row.avatar_color, role: usersResult.data?.find((item) => item.user_id === row.id)?.role || 'member' }));
       const roomRows = (roomsResult.data || []) as RoomRow[];
       const dmRows = roomRows.filter((room) => room.kind === 'dm');
-      const participantsResult = dmRows.length ? await supabase.from('dm_members').select('room_id,user_id').in('room_id', dmRows.map((room) => room.id)) : { data: [], error: null };
+      const participantsResult = dmRows.length ? await client.from('dm_members').select('room_id,user_id').in('room_id', dmRows.map((room) => room.id)) : { data: [], error: null };
       if (participantsResult.error) throw participantsResult.error;
       const rooms: Room[] = roomRows.map((room) => ({
         id: room.id,
@@ -95,16 +96,16 @@ export function useCloud(enabled: boolean): CloudAccess {
       }));
       let messages: Message[] = [];
       if (rooms.length) {
-        const messagesResult = await supabase.from('messages').select('id,room_id,sender_id,body,created_at,edited_at,attachment_path,attachment_name').in('room_id', rooms.map((room) => room.id)).order('created_at', { ascending: true }).limit(500);
+        const messagesResult = await client.from('messages').select('id,room_id,sender_id,body,created_at,edited_at,attachment_path,attachment_name').in('room_id', rooms.map((room) => room.id)).order('created_at', { ascending: true }).limit(500);
         if (messagesResult.error) throw messagesResult.error;
         const messageRows = (messagesResult.data || []) as MessageRow[];
-        const reactionsResult = messageRows.length ? await supabase.from('reactions').select('message_id,user_id,emoji').in('message_id', messageRows.map((row) => row.id)) : { data: [], error: null };
+        const reactionsResult = messageRows.length ? await client.from('reactions').select('message_id,user_id,emoji').in('message_id', messageRows.map((row) => row.id)) : { data: [], error: null };
         if (reactionsResult.error) throw reactionsResult.error;
         const reactionRows = (reactionsResult.data || []) as ReactionRow[];
         const paths = [...new Set(messageRows.map((row) => row.attachment_path).filter((path): path is string => Boolean(path)))];
         const urls = new Map<string, string>();
         await Promise.all(paths.map(async (path) => {
-          const result = await supabase.storage.from('collabspace-attachments').createSignedUrl(path, 3600);
+          const result = await client.storage.from('collabspace-attachments').createSignedUrl(path, 3600);
           if (result.data?.signedUrl) urls.set(path, result.data.signedUrl);
         }));
         messages = messageRows.map((row) => {

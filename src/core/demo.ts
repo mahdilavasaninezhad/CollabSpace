@@ -51,14 +51,21 @@ const starter: Array<[string, string, string, number]> = [
 ];
 
 function initialMessages(): Message[] {
-  return starter.map(([roomId, authorId, body, minutes], index) => ({
-    id: `demo-msg-${index + 1}`,
-    roomId,
-    authorId,
-    body,
-    createdAt: minusMinutes(minutes),
-    reactions: index === 5 ? { '🎉': ['me', 'james'], '🔥': ['sara'] } : index === 8 ? { '💜': ['maria', 'sara'] } : {}
-  }));
+  return starter.map(([roomId, authorId, body, minutes], index) => {
+    const reactions: Record<string, string[]> = index === 5
+      ? { '🎉': ['me', 'james'], '🔥': ['sara'] }
+      : index === 8
+        ? { '💜': ['maria', 'sara'] }
+        : {};
+    return {
+      id: `demo-msg-${index + 1}`,
+      roomId,
+      authorId,
+      body,
+      createdAt: minusMinutes(minutes),
+      reactions
+    };
+  });
 }
 
 export const initialDemo = (): WorkspaceData => ({

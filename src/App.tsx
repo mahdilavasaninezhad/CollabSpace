@@ -3,7 +3,7 @@ import type { ChangeEvent, FormEvent, ReactNode } from 'react';
 import {
   ArrowDownToLine, ArrowLeft, ArrowRight, Bell, Check,
   ChevronRight, CircleHelp, Copy, FileText, Hash, Info,
-  Languages, Lock, LogOut, Menu, MessageCircle, MessageSquareText, Moon, MoreHorizontal,
+  Languages, Lock, LogOut, MessageCircle, MessageSquareText, Moon, MoreHorizontal,
   Paperclip, Plus, Search, Send, Settings2, ShieldCheck, Smile, Sparkles, Sun, Trash2,
   Users, X, Zap, Pencil, Keyboard, RotateCcw
 } from 'lucide-react';
