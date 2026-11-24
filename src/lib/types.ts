@@ -1,0 +1,12 @@
+export type Locale = 'en' | 'fa';
+export type Theme = 'light' | 'dark';
+export type Mode = 'demo' | 'cloud';
+export type RoomKind = 'channel' | 'dm';
+export type Member = { id: string; name: string; color: string; role: string; email?: string };
+export type Workspace = { id: string; name: string; code?: string; ownerId?: string };
+export type Room = { id: string; workspaceId: string; name: string; description: string; kind: RoomKind; participantIds?: string[]; createdAt: string };
+export type Attachment = { name: string; path?: string; url?: string; type?: string };
+export type Message = { id: string; roomId: string; authorId: string; body: string; createdAt: string; editedAt?: string; attachment?: Attachment; reactions: Record<string, string[]> };
+export type WorkspaceData = { workspace: Workspace | null; rooms: Room[]; members: Member[]; messages: Message[] };
+export type ToastTone = 'positive' | 'error' | 'neutral';
+export type ToastItem = { id: string; text: string; tone: ToastTone };
