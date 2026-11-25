@@ -1,6 +1,48 @@
 # CollabSpace
 
-A complete React and TypeScript portfolio project for team conversations and collaborative work. Unlike a generic admin dashboard, CollabSpace is designed around real conversations, presence, people and shared files.
+> **A shared space for conversations that move teams forward.**
+
+**React 19 · TypeScript · Vite · Supabase · Realtime · PostgreSQL · Zustand**
+
+## Overview
+
+CollabSpace brings team communication into a focused, modern interface. It combines workspaces, channels, one-to-one conversations, message reactions, and file sharing. A local preview works without configuration, while connecting Supabase enables real authentication, database-backed messaging, and live updates across users.
+
+### Highlights
+
+- Email/password authentication and team invitations through Supabase
+- Channels, direct messages, message edits, deletion, and emoji reactions
+- Real-time message updates, typing indicators, and online presence
+- Private file attachments with signed download URLs
+- Row-level security for workspace and private-conversation data
+- Responsive English/Persian UI with RTL/LTR and a local preview mode
+
+**Scope:** Real multi-user features require your own configured Supabase project. The local preview does not sync between different users or devices. Production hardening, monitoring, and moderation remain separate concerns.
+
+---
+
+<div dir="rtl" align="right">
+
+## معرفی فارسی
+
+کلاب‌اسپیس برای ارتباط روزمره تیم‌ها ساخته شده است: کانال‌های گفتگو، پیام‌های خصوصی، واکنش به پیام و فایل‌های مشترک در یک محیط منظم. بدون پیکربندی می‌شود نسخه نمایشی آن را بررسی کرد؛ با اتصال Supabase، ورود واقعی کاربران، ذخیره پیام‌ها و به‌روزرسانی بلادرنگ میان کاربران فعال می‌شود.
+
+### ویژگی‌های اصلی
+
+- ورود کاربران و دعوت به تیم از طریق Supabase
+- کانال‌ها، پیام خصوصی، ویرایش/حذف پیام و واکنش ایموجی
+- به‌روزرسانی بلادرنگ، وضعیت آنلاین و نشانگر تایپ
+- پیوست فایل خصوصی با لینک دانلود موقت
+- قوانین Row Level Security برای دسترسی به داده‌ها
+- رابط واکنش‌گرای فارسی/انگلیسی و امکان اجرای حالت نمایشی بدون سرور
+
+**محدوده پروژه:** امکانات چندکاربره واقعی نیازمند پروژه Supabase تنظیم‌شده‌اند. حالت نمایشی بین کاربران و دستگاه‌های مختلف همگام نمی‌شود و برای محصول نهایی، امنیت عملیاتی و پایش تکمیلی لازم است.
+
+</div>
+
+---
+
+## Technical documentation / مستندات فنی
 
 ## What works out of the box
 

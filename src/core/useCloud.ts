@@ -22,6 +22,7 @@ type CloudAccess = {
   sendMessage: (roomId: string, body: string, file?: File) => Promise<void>;
   editMessage: (id: string, body: string) => Promise<void>;
   deleteMessage: (id: string) => Promise<void>;
+  deleteChannel: (id: string) => Promise<void>;
   toggleReaction: (id: string, emoji: string) => Promise<void>;
   addChannel: (name: string, description: string) => Promise<void>;
   createDm: (memberId: string) => Promise<string>;
@@ -32,7 +33,7 @@ type CloudAccess = {
 const empty: WorkspaceData = { workspace: null, rooms: [], members: [], messages: [] };
 
 type ProfileRow = { id: string; display_name: string; avatar_color: string };
-type RoomRow = { id: string; workspace_id: string; name: string; description: string; kind: 'channel' | 'dm'; created_at: string };
+type RoomRow = { id: string; workspace_id: string; name: string; description: string; kind: 'channel' | 'dm'; created_by: string; created_at: string };
 type MessageRow = { id: string; room_id: string; sender_id: string; body: string; created_at: string; edited_at: string | null; attachment_path: string | null; attachment_name: string | null };
 type ReactionRow = { message_id: string; user_id: string; emoji: string };
 
@@ -69,7 +70,7 @@ export function useCloud(enabled: boolean): CloudAccess {
       workspaceRef.current = selectedId;
       const [workspaceResult, roomsResult, usersResult] = await Promise.all([
         client.from('workspaces').select('id,name,invite_code,owner_id').eq('id', selectedId).single(),
-        client.from('rooms').select('id,workspace_id,name,description,kind,created_at').eq('workspace_id', selectedId).order('created_at', { ascending: true }),
+        client.from('rooms').select('id,workspace_id,name,description,kind,created_by,created_at').eq('workspace_id', selectedId).order('created_at', { ascending: true }),
         client.from('workspace_members').select('user_id,role').eq('workspace_id', selectedId)
       ]);
       if (workspaceResult.error) throw workspaceResult.error;
@@ -92,6 +93,7 @@ export function useCloud(enabled: boolean): CloudAccess {
         description: room.description,
         kind: room.kind,
         participantIds: room.kind === 'dm' ? (participantsResult.data || []).filter((participant) => participant.room_id === room.id).map((participant) => participant.user_id) : undefined,
+        createdBy: room.created_by,
         createdAt: room.created_at
       }));
       let messages: Message[] = [];
@@ -199,7 +201,7 @@ export function useCloud(enabled: boolean): CloudAccess {
     const changes = client.channel(`collabspace-changes-${workspaceId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => { void refreshRef.current(); })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'reactions' }, () => { void refreshRef.current(); })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rooms' }, () => { void refreshRef.current(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, () => { void refreshRef.current(); })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'dm_members' }, () => { void refreshRef.current(); })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'workspace_members' }, () => { void refreshRef.current(); })
       .subscribe();
@@ -289,10 +291,32 @@ export function useCloud(enabled: boolean): CloudAccess {
   };
 
   const deleteMessage = async (id: string) => {
+    const client = requireClient();
     const message = data.messages.find((item) => item.id === id);
-    const { error: issue } = await requireClient().from('messages').delete().eq('id', id).eq('sender_id', user?.id || '');
+    const room = data.rooms.find((item) => item.id === message?.roomId);
+    const isChannelCreator = room?.kind === 'channel' && room.createdBy === user?.id;
+    if (!user || !message || (message.authorId !== user.id && !isChannelCreator)) throw new Error('Only the author or channel creator can delete this message');
+    let query = client.from('messages').delete().eq('id', id);
+    if (!isChannelCreator) query = query.eq('sender_id', user.id);
+    const { data: removed, error: issue } = await query.select('id');
     if (issue) throw issue;
-    if (message?.attachment?.path) await requireClient().storage.from('collabspace-attachments').remove([message.attachment.path]);
+    if (!removed?.length) throw new Error('Message not found or permission denied');
+    let attachmentError: string | null = null;
+    if (message.attachment?.path) {
+      const { error: issue } = await client.storage.from('collabspace-attachments').remove([message.attachment.path]);
+      if (issue) attachmentError = getErrorText(issue);
+    }
+    await load();
+    if (attachmentError) throw new Error(`Message deleted, but attachment cleanup failed: ${attachmentError}`);
+  };
+
+  const deleteChannel = async (id: string) => {
+    const client = requireClient();
+    const channel = data.rooms.find((room) => room.id === id);
+    if (!user || !channel || channel.kind !== 'channel' || channel.createdBy !== user.id) throw new Error('Only the channel creator can delete this channel');
+    const { data: removed, error: issue } = await client.from('rooms').delete().eq('id', id).eq('kind', 'channel').eq('created_by', user.id).select('id');
+    if (issue) throw issue;
+    if (!removed?.length) throw new Error('Channel not found or permission denied');
     await load();
   };
 
@@ -326,5 +350,5 @@ export function useCloud(enabled: boolean): CloudAccess {
     void presenceRef.current.send({ type: 'broadcast', event: 'typing', payload: { roomId, userId: user.id, name: data.members.find((member) => member.id === user.id)?.name || 'Teammate' } });
   };
 
-  return { user, session, loading, refreshing, error, data, online, typing, signIn, signUp, resendConfirmation, signOut, createWorkspace, joinWorkspace, sendMessage, editMessage, deleteMessage, toggleReaction, addChannel, createDm, sendTyping, refresh: load };
+  return { user, session, loading, refreshing, error, data, online, typing, signIn, signUp, resendConfirmation, signOut, createWorkspace, joinWorkspace, sendMessage, editMessage, deleteMessage, deleteChannel, toggleReaction, addChannel, createDm, sendTyping, refresh: load };
 }

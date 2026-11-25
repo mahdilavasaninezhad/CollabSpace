@@ -14,10 +14,10 @@ const members: Member[] = [
 ];
 
 const rooms: Room[] = [
-  { id: 'general', workspaceId: 'studio', name: 'general', description: 'Team announcements, conversations and celebrations', kind: 'channel', createdAt: '2026-01-01' },
-  { id: 'design', workspaceId: 'studio', name: 'design-team', description: 'Everything design. Reviews, feedback and explorations.', kind: 'channel', createdAt: '2026-01-02' },
-  { id: 'engineering', workspaceId: 'studio', name: 'engineering', description: 'Shipping quality software together', kind: 'channel', createdAt: '2026-01-03' },
-  { id: 'launch', workspaceId: 'studio', name: 'product-launch', description: 'Launch planning and important milestones', kind: 'channel', createdAt: '2026-01-04' },
+  { id: 'general', workspaceId: 'studio', name: 'general', description: 'Team announcements, conversations and celebrations', kind: 'channel', createdBy: 'me', createdAt: '2026-01-01' },
+  { id: 'design', workspaceId: 'studio', name: 'design-team', description: 'Everything design. Reviews, feedback and explorations.', kind: 'channel', createdBy: 'me', createdAt: '2026-01-02' },
+  { id: 'engineering', workspaceId: 'studio', name: 'engineering', description: 'Shipping quality software together', kind: 'channel', createdBy: 'james', createdAt: '2026-01-03' },
+  { id: 'launch', workspaceId: 'studio', name: 'product-launch', description: 'Launch planning and important milestones', kind: 'channel', createdBy: 'maria', createdAt: '2026-01-04' },
   { id: 'dm-maria', workspaceId: 'studio', name: 'maria', description: '', kind: 'dm', participantIds: ['me', 'maria'], createdAt: '2026-01-05' },
   { id: 'dm-james', workspaceId: 'studio', name: 'james', description: '', kind: 'dm', participantIds: ['me', 'james'], createdAt: '2026-01-06' }
 ];
@@ -80,6 +80,7 @@ type DemoState = {
   sendMessage: (roomId: string, body: string, attachment?: Message['attachment']) => void;
   editMessage: (id: string, body: string) => void;
   deleteMessage: (id: string) => void;
+  deleteChannel: (id: string) => void;
   react: (id: string, emoji: string) => void;
   addChannel: (name: string, description: string) => void;
   createDm: (memberId: string) => string;
@@ -98,9 +99,18 @@ export const useDemoStore = create<DemoState>()(persist((set, get) => ({
   editMessage: (id, body) => set((s) => ({
     data: { ...s.data, messages: s.data.messages.map((message) => message.id === id && message.authorId === DEMO_SELF ? { ...message, body, editedAt: new Date().toISOString() } : message) }
   })),
-  deleteMessage: (id) => set((s) => ({
-    data: { ...s.data, messages: s.data.messages.filter((message) => message.id !== id || message.authorId !== DEMO_SELF) }
-  })),
+  deleteMessage: (id) => set((s) => {
+    const message = s.data.messages.find((item) => item.id === id);
+    const room = s.data.rooms.find((item) => item.id === message?.roomId);
+    const canModerate = room?.kind === 'channel' && (room.createdBy === DEMO_SELF || !room.createdBy);
+    if (!message || (message.authorId !== DEMO_SELF && !canModerate)) return s;
+    return { data: { ...s.data, messages: s.data.messages.filter((item) => item.id !== id) } };
+  }),
+  deleteChannel: (id) => set((s) => {
+    const room = s.data.rooms.find((item) => item.id === id);
+    if (!room || room.kind !== 'channel' || (room.createdBy && room.createdBy !== DEMO_SELF)) return s;
+    return { data: { ...s.data, rooms: s.data.rooms.filter((item) => item.id !== id), messages: s.data.messages.filter((item) => item.roomId !== id) } };
+  }),
   react: (id, emoji) => set((s) => ({
     data: { ...s.data, messages: s.data.messages.map((message) => {
       if (message.id !== id) return message;
@@ -112,7 +122,7 @@ export const useDemoStore = create<DemoState>()(persist((set, get) => ({
     }) }
   })),
   addChannel: (name, description) => set((s) => ({
-    data: { ...s.data, rooms: [...s.data.rooms, { id: crypto.randomUUID(), workspaceId: 'studio', name, description, kind: 'channel', createdAt: new Date().toISOString() }] }
+    data: { ...s.data, rooms: [...s.data.rooms, { id: crypto.randomUUID(), workspaceId: 'studio', name, description, kind: 'channel', createdBy: DEMO_SELF, createdAt: new Date().toISOString() }] }
   })),
   createDm: (memberId) => {
     const existing = get().data.rooms.find((room) => room.kind === 'dm' && room.participantIds?.includes(memberId));
